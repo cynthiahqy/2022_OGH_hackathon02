@@ -1,0 +1,3 @@
+[submodule "spatial-prediction-eml"]
+	path = spatial-prediction-eml
+	url = https://github.com/cynthiahqy/spatial-prediction-eml.git

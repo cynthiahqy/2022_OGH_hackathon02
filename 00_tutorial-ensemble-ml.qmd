@@ -1,0 +1,69 @@
+---
+title: "ensemble-ml-tutorial"
+format: html
+editor: visual
+---
+
+## Setup
+
+``` r
+renv::init()
+devtools::install_github("envirometrix/landmap")
+```
+
+## 1: Introduction to spatial and spatiotemporal data
+
+spatial / geospatial data
+
+:   Spatial and/or geospatial data is any data that is spatially referenced (in the case of geographical data referenced to Earth surface) i.e. X and Y coordinates are known. - [OpenGeoHub tutorial](https://opengeohub.github.io/spatial-prediction-eml/introduction-to-spatial-and-spatiotemporal-data.html)
+
+## 3: **Spatial interpolation in 3D using Ensemble ML**
+
+### Load Data
+
+### 3.1
+
+initial processing already performed
+
+```{r}
+#| data-import
+ds801 <- readRDS("./data/external/ds801_geochem1km.rds")
+dim(ds801)
+```
+
+covariate scatterplot
+
+```{r}
+openair::scatterPlot(ds801[ds801$pb_ppm<140,], x = "hzn_depth", y = "pb_ppm", method = "hexbin", col = "increment", log.x=TRUE, log.y=TRUE, xlab="Depth", ylab="Pb [ppm]", z.lim=c(0,100), type="landcover1")
+#> Warning: removing 11 missing rows due to landcover1
+```
+
+```{r}
+chicago <- readRDS("./data/external/chicago_grid1km.rds")
+pb.vars <- readRDS("./data/external/pb.pr.vars.rds")
+```
+
+### 3.2
+
+try to replicate modelling
+
+```{r}
+g1km <- readRDS("./data/external/chicago_grid1km.rds")
+```
+
+```{r}
+for(k in c(5, 30, 60)){
+  out.tif = paste0("./data/interim/pb_ppm_", k, "cm_1km.tif")
+  if(!file.exists(out.tif)){
+    g1km$hzn_depth = k
+    sel.na = complete.cases(g1km)
+    newdata = g1km[sel.na, eml.pb$features]
+    pred = predict(eml.pb, newdata=newdata)
+    g1km.sp = SpatialPixelsDataFrame(as.matrix(g1km[sel.na,c("x","y")]), 
+                data=pred$data, proj4string=CRS("EPSG:5070"))
+    g1km.sp$pred = expm1(g1km.sp$response)
+    rgdal::writeGDAL(g1km.sp["pred"], out.tif, type="Int16", mvFlag=-32768, options=c("COMPRESS=DEFLATE"))
+    #gc()
+  }
+}
+```
