@@ -1,0 +1,32 @@
+---
+title: "mlr3spatial"
+format: html
+editor: visual
+---
+
+```{r}
+source("01_mlr3-experiments.R")
+```
+
+### Questions
+
+-   how to set column roles? -- [mlr3book section](https://mlr3book.mlr-org.com/basics.html#tasks-roles)
+
+```{r}
+task_ds801
+task_ds801$data()
+task_ds801$feature_names
+
+## setting roles
+task_ds801$col_roles$group = "state"
+task_ds801$col_roles$group
+
+## setting 
+
+task_ds801$target_names
+```
+
+-   what's the difference between 'blocking' and 'group' column roles?
+    -   see [class manual](https://mlr3.mlr-org.com/reference/Task.html) for `Task`
+    -   use `"group"` role for site_id -- only takes one column
+    -   use `"stratum"` role for blocking variables -- can take multiple columns
