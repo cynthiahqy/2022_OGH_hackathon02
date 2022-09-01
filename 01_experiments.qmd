@@ -1,0 +1,149 @@
+---
+title: "Hackathon #2"
+---
+
+## About
+
+<!-- This notebook... -->
+
+## Set Up
+
+```{r}
+#| label: load-libraries
+library(devtools)
+library(sp)
+library(sf)
+library(raster)
+library(ranger)
+library(mlr)
+library(plotKML)
+library(yardstick)
+library(dplyr)
+library(spcosa)
+```
+
+```{r}
+#| label: data-import
+ds801 <- readRDS("./data/external/ds801_geochem1km.rds")
+```
+
+First, import the regression matrix `ds801_geochem1km.rds` as prepared in the [Spatial interpolation in 3D using Ensemble ML](https://opengeohub.github.io/spatial-prediction-eml/spatial-interpolation-in-3d-using-ensemble-ml.html) tutorial . The matrix contains geochemical soil samples collected at `r dplyr::n_distinct(ds801$olc_id)` unique locations, as well as various covariates. The tutorial provides details of the various covariates, some exploratory plots, and a single "naive" random-forest (RF) model for predicting soil concentrations of lead at different depths.
+
+### Spatial Strata Units
+
+```{r}
+#| eval: false
+coords <- cbind(ds801$longitude,ds801$latitude)
+multi  <- st_multipoint(coords) #Multipoint
+plot(multi)
+conv <- st_convex_hull(multi)
+plot(conv, add = TRUE)
+
+## attempt to stratify convex hull
+grid <- st_make_grid(conv, cellsize = c(1,1))
+inter <- st_intersection(grid,conv)
+
+set.seed(314)
+
+#grd <- expand.grid(x = unique(ds801$longitude), y = unique(ds801$latitude))
+#sp::gridded(grd) <- ~ x * y
+#strat <- stratify(, nStrata = 75, nTry = 10)
+```
+
+### Feature Extrapolation Units
+
+## Single Experiments
+
+### Task Preparation
+
+<!--# describe tasks as given in instructions -->
+
+### Naive RF
+
+<!--# tidy rewrite of filter/select pipeline -->
+
+```{r}
+#| label: fit-single-RF
+ds801$log.pb = log1p(ds801$pb_ppm)  ## log transformation
+pr.vars = c(readRDS("./data/external/pb.pr.vars.rds"), "hzn_depth") ## predictor columns
+sel.pb = complete.cases(ds801[,c("log.pb", pr.vars)]) ## boolean selector for complete rows
+
+mrf = ranger::ranger(y=ds801$log.pb[sel.pb], x=ds801[sel.pb, pr.vars], 
+            num.trees = 85, importance = 'impurity')
+mrf
+```
+
+### Ensemble Learner with Site-based Blocking
+
+Use `mlr` package to create a regression task with `log.pb` as the target variable, and `r length(pr.vars)` features (`pr.vars)` . Block by site ID to ensure overlapping depth observations are not split between test/train sets. Blocking vector is a separate object to the matrix containing target and feature vars --\> **⚠️ AVOID any reordering/rearranging!!!**
+
+```{r, cache=TRUE, warning=FALSE, message=FALSE}
+## prepare data and blocking vars
+ds801_pb <- ds801[sel.pb, c("log.pb", pr.vars)]
+ds801_pb_ID_fct <- as.factor(ds801$ID[sel.pb])  ## same length as target & features
+                  
+## task
+tsk0.pb <- mlr::makeRegrTask(data = ds801_pb, target = "log.pb", blocking = ds801_pb_ID_fct)
+## learners
+lrn.rf = mlr::makeLearner("regr.ranger", num.trees=85, importance="impurity",
+                          num.threads = parallel::detectCores())
+lrns.pb <- list(lrn.rf, mlr::makeLearner("regr.xgboost"), mlr::makeLearner("regr.cvglmnet"))
+init.pb <- mlr::makeStackedLearner(base.learners = lrns.pb, super.learner="regr.lm",
+                                   method="stack.cv", 
+                                   resampling=makeResampleDesc(method="CV", blocking.cv=TRUE))
+parallelMap::parallelStartSocket(parallel::detectCores())
+eml.pb_site = mlr::train(init.pb, tsk0.pb)
+parallelMap::parallelStop()
+```
+
+### Hold-Out Validation
+
+### State-based weighted samples
+
+<!--# hierarchical blocking -->
+
+<!--# hold-out set selected based on STATE // -->
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+## mlr preparation ----
+### regMatrix and blocking 
+ds801_pb_state <- ds801 |>
+  dplyr::mutate(block_var = paste(state, ID, sep="-")) |>
+  dplyr::select(block_var, "log.pb", pr.vars) |> ## select relevant cols for task
+  tidyr::drop_na()                         ## keep only complete rows
+  
+ds801_pb_block_var <- as.factor(ds801_pb_state$block_var)
+ds801_pb <- ds801_pb_state |> 
+  dplyr::select("log.pb", pr.vars)
+
+## mlr pipeline ----
+### task
+tsk0.pb <- mlr::makeRegrTask(data = ds801_pb, target = "log.pb", blocking = ds801_pb_block_var)
+### learners
+lrn.rf = mlr::makeLearner("regr.ranger", num.trees=85, importance="impurity",
+                          num.threads = parallel::detectCores())
+lrns.pb <- list(lrn.rf, mlr::makeLearner("regr.xgboost"), mlr::makeLearner("regr.cvglmnet"))
+init.pb <- mlr::makeStackedLearner(base.learners = lrns.pb, super.learner="regr.lm",
+                                   method="stack.cv", 
+                                   resampling=makeResampleDesc(method="CV", blocking.cv=TRUE))
+parallelMap::parallelStartSocket(parallel::detectCores())
+eml.pb_state = mlr::train(init.pb, tsk0.pb)
+parallelMap::parallelStop()
+```
+
+<!--# HOW TO EXTRACT THE R^2? -->
+
+```{r}
+summary(eml.pb$learner.model$super.model$learner.model)
+```
+
+### Grid-based weighted samples
+
+```{r}
+## 
+ds_801 |>
+  select(block_vars, target_var, features)
+```

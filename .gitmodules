@@ -1,3 +1,6 @@
 [submodule "spatial-prediction-eml"]
 	path = spatial-prediction-eml
 	url = https://github.com/cynthiahqy/spatial-prediction-eml.git
+[submodule "spatial-sampling-ml"]
+	path = spatial-sampling-ml
+	url = https://github.com/OpenGeoHub/spatial-sampling-ml.git
