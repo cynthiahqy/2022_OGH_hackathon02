@@ -3,6 +3,7 @@ title: "Hackathon Non-Submission"
 format: html
 editor: visual
 bibliography: references.bib
+toc: true
 ---
 
 Laura and I spent probably about 8-10 hours over this week working on hackathon #2, and we couldn't finish any of the requested tasks. However, I did learn a few things along the way.
