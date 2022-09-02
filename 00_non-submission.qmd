@@ -165,6 +165,8 @@ According to the `Resampling` class [documentation](https://mlr3.mlr-org.com/ref
 
 > Second, the sampling is performed in each of the `k` subpopulations separately. Each subgroup is divided into `iter` training sets and `iter` test sets by the derived `Resampling`. These sets are merged based on their iteration number: all training sets from all subpopulations with iteration 1 are combined, then all training sets with iteration 2, and so on. Same is done for all test sets. The merged sets can be accessed via `$train_set(i)` and `$test_set(i)`, respectively. Note that this procedure can lead to set sizes that are slightly different from those without stratification.
 
+We didn't try this, but in theory this mlr3 tutorial discusses what we want to do: [**Resampling - Stratified, Blocked and Predefined**](https://mlr-org.com/gallery/2020-03-30-stratification-blocking/)
+
 ### Using CAST 
 
 An alternative approach would be what Hanna presented in the Extrapolation tutorial of generating the CV folds independently and then passing it to `mlr3` via `rsmp("custom")`
@@ -200,3 +202,23 @@ plot(sub2[,'site_id'],add=TRUE,col="red")
 ## ML Issues
 
 We didn't really understand how the tuning and cross-validation in `{mlr3}` worked, and that resampling is (probably?) used both in tuning, and estimating the "experiment" RMSE.
+
+## Misc. Spatial Tasks
+
+We try to manually make a grid for spatial clustering:
+
+``` r
+## Creating grid to sample later
+# Mulipoint and convex hull
+coords <- cbind(ds801$longitude,ds801$latitude)
+multi  <- st_multipoint(coords) #Multipoint
+plot(multi)
+
+conv <- st_convex_hull(multi)
+plot(conv)
+
+ds801_sp <- st_as_sf(ds801, coords = c("longitude","latitude"))
+
+## Making grid
+grid = st_make_grid(conv, cellsize = c(3,3))
+```
