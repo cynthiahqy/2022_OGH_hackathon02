@@ -4,6 +4,3 @@
 [submodule "spatial-sampling-ml"]
 	path = spatial-sampling-ml
 	url = https://github.com/OpenGeoHub/spatial-sampling-ml.git
-[submodule "geo-snippets"]
-	path = geo-snippets
-	url = https://gitlab.com/leal.parente/geo-snippets.git

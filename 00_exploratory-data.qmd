@@ -9,6 +9,14 @@ Preprocessed `ds801_geochem1km.rds` regression matrix:
 -   has all chemical sample variables (potential targets), and aligned covariates
 -   "grouping" columns of interest: `site_id`, `ID`, `state`
 
+```{r plot-ds801}
+ds801$empty <- 0
+
+plot(ds801[,"geometry"])
+
+```
+
+
 ### Questions: 
 
 -   What is the difference between `ID` and `site_id` in `ds801_geochem1km.rds`?
@@ -20,8 +28,14 @@ ds801 |>
   dplyr::summarise(across(c(site_id, ID), dplyr::n_distinct))
 ```
 
+```{r}
+plot(chicago[,"snow.occ_2000..2012_p90_aug_usa48"])
+```
+
+
 -   Why `chicago_grid1km.rds`?
     -   has basically the same columns as the RF regression matrix created in @eml-tutorial except the extra grouping variables, and geometry 
+    - `x` and `y` are coordinates
     
 ```{r}
 setdiff(names(ds801_pb), names(chicago))

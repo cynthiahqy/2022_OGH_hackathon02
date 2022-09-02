@@ -12,13 +12,13 @@ source("01_mlr3-experiments.R")
 
 -   how to set column roles? -- [mlr3book section](https://mlr3book.mlr-org.com/basics.html#tasks-roles)
 
-```{r}
+``` r
 task_ds801
 task_ds801$data()
 task_ds801$feature_names
 
 ## setting roles
-task_ds801$col_roles$group = "state"
+# task_ds801$col_roles$group = "state"
 task_ds801$col_roles$group
 
 ## setting 
@@ -30,3 +30,8 @@ task_ds801$target_names
     -   see [class manual](https://mlr3.mlr-org.com/reference/Task.html) for `Task`
     -   use `"group"` role for site_id -- only takes one column
     -   use `"stratum"` role for blocking variables -- can take multiple columns
+
+```{r}
+## does setting the roles change the feature set?
+task_ds801$feature_names
+```

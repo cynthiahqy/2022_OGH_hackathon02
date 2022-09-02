@@ -1,0 +1,201 @@
+---
+title: "Hackathon Non-Submission"
+format: html
+editor: visual
+bibliography: references.bib
+---
+
+Laura and I spent probably about 8-10 hours over this week working on hackathon #2, and we couldn't finish any of the requested tasks. However, I did learn a few things along the way.
+
+Prior to this week, I had done zero spatial machine learning, no machine learning in R, and minimal spatial data manipulation in R. Laura was similarly inexperienced. Nevertheless, we tried the following: (note the code is not executable.. because time)
+
+# Replicating Existing Tutorials and Code
+
+We cloned (as git submodules) or downloaded source code of the follow analyses:
+
+### OpenGeoHub USGS NGS [**soil geochemicals mapping tutorial**](https://opengeohub.github.io/spatial-prediction-eml/spatial-interpolation-in-3d-using-ensemble-ml.html).
+
+-   tutorial was quite difficult to follow from the rendered webpage as code chunks sometimes used functions or `.rds` objects not produced in the tutorial.
+
+-   useful for roughly understanding the data provided, though it wasn't so clear what to do with `chicago_grid1km.rds`
+
+-   also caused issues when trying to use code from `mlr3` tutorial because of conflicts between `mlr` and `mlr3`. `mlr3` task was empty after initiation with data until the .Rmd using `mlr` was closed and the session restarted ([stackoverflow](https://stackoverflow.com/questions/68576432/why-does-my-mlr3-classification-task-have-no-features)).
+
+### OpenGeoHub [**example**](https://opengeohub.github.io/spatial-sampling-ml/alt-text-resampling-methods-for-machine-learning.html#testing-mapping-accuracy-using-resampling-and-blocking) of how to test predictive performance of a ML method using repeated resampling
+
+Planned to use for experiment stage, but we didn't get there...
+
+### Scripts from @debruin2022 
+
+provided at: <https://zenodo.org/record/6514923#.YxGjei8RrRY>. We roughly annotated the `sample_clustered.R` script to use as a basis for the hackathon sampling task.
+
+``` r
+# 1st case: 50% sample from 20% of the area
+set.seed(1234567)
+
+for (i in 1:n_samp){
+  idx <- sample.int(100, 20)  ## 100 spatial units, pick 20 to get 20% coverage
+  ndx <- setdiff(1:100, idx)  ## remaining 80 units
+  
+  msk1 <- mask(msk, strata[idx,]) ## msk is a boolean observation presence map
+  msk2 <- mask(msk, strata[ndx,]) ## select observations that match the 
+  
+  sub <- sample(cells(msk1), 2500) ## 2500 is 50% of the cells with observations available
+  sub <- c(sub, sample(cells(msk2), 2500)) ## total training sample size appears to be 5000
+  ## not clear what the train/test ratio is (5000/??)
+  pts <- xyFromCell(msk, sub)
+  
+  AGBdata <- extract(AGBstack, sub)
+  OCSdata <- extract(OCSstack, sub)
+  AGBdata$glc2017 <- factor(AGBdata$glc2017, levels=1:8)
+  OCSdata$glc2017 <- factor(OCSdata$glc2017, levels=1:8)
+  
+  fname <- paste0("AGBdata", sprintf("%03d", i), ".Rdata")
+  save(AGBdata, file=file.path(outfolder, "clusterMedium", fname))
+  fname <- paste0("OCSdata", sprintf("%03d", i), ".Rdata")
+  save(OCSdata, file=file.path(outfolder, "clusterMedium", fname))
+}
+
+# 2nd case: 90% sample from 10% of the area
+set.seed(1234567)
+
+for (i in 1:n_samp){
+  idx <- sample.int(100, 10)
+  ndx <- setdiff(1:100, idx)
+  
+  msk1 <- mask(msk, strata[idx,])
+  msk2 <- mask(msk, strata[ndx,])
+  
+  sub <- sample(cells(msk1), 4500)            ## fixed training sample size of (5000)
+  sub <- c(sub, sample(cells(msk2), 500))
+  pts <- xyFromCell(msk, sub)
+  
+  AGBdata <- extract(AGBstack, sub)
+  OCSdata <- extract(OCSstack, sub)
+  AGBdata$glc2017 <- factor(AGBdata$glc2017, levels=1:8)
+  OCSdata$glc2017 <- factor(OCSdata$glc2017, levels=1:8)
+  
+  fname <- paste0("AGBdata", sprintf("%03d", i), ".Rdata")
+  save(AGBdata, file=file.path(outfolder, "clusterStrong", fname))
+  fname <- paste0("OCSdata", sprintf("%03d", i), ".Rdata")
+  save(OCSdata, file=file.path(outfolder, "clusterStrong", fname))
+}
+```
+
+# Spatial Sampling Attempts
+
+Ignoring the feature space extrapolation, we tried the following for the spatial extrapolation questions:
+
+## Sampling Design
+
+Understanding the required sampling strategy was quite difficult. For a **fixed** number of samples (e.g. in `ds801_geochem1km.rds`), depending on which dimension you randomise over first, the overall train/test ratio (probably?) needs to vary to achieve required sample percentage from extrapolation extent. In any case, collapsing the hierarchical sampling structure and detangling the inter-related constraints was very challenging. Assuming these issues are resolved into an clear experimental design, this task would probably be a lot easier with simulated data that is built up sequentially. Notice above in the @debruin2022 script the choice of fixed training sample size (`5000`), and partition of the overall extent into `100` spatial units to make selecting `x%` coverage easier.
+
+The designation of the extrapolation and observed sets can be thought of as a (partly) deterministic process -- i.e. based on some distance threshold, or correlation parameters; random subset of k-means generated clusters. Given extrapolation and observed set, we then consider what proportion of the test and training sets to sample from each set, which complicates holding constant other parameters of each experimental run (i.e. how to calculate the empty red question mark cells, given some experiment design constraints -- same test/train set sizes etc.)
+
+![](https://lh4.googleusercontent.com/yKCP2LIPHa02jOlddd8onjNj2iMwr9YHZj33_TTPOShWOXHuqeQZ4-Vux_u_v1O9QCP2kyyJ44ZdI5jHVl82K516bl3Y24Fvc_-0G4oNIP1fDC_dHYB9bdc3AgFmeEHthQ3xJ932CjbdsIs9ogYKkLwHKIpmT6cKSTU6yvrL4BEujC54qnPYP_8ouK0){width="461"}
+
+Things that should be held constant
+
+-   number of folds, iterations
+-   size of test/train sets
+-   `site_id` block samplines (i.e. don't split up the depth observations between train/test)
+
+## Implementation Attempts
+
+### Spatial Clustering Using `spcosa`
+
+Following @debruin2022 we tried to use [`{spcosa}`](https://cran.r-project.org/web/packages/spcosa/vignettes/spcosa.html) to do spatial clustering and create a `strata` overlay (with the intention of using it for sampling), but had difficulty installing the package (seemingly related to `{rjava}`).
+
+### Fold sampling function
+
+The fold sampling function below does not preserve the `site_id` blocking, and has some maybe questionable default handling of cases where observations available in the extrapolation space are the sufficient to fill the proposed sampling percentage from extrapolation area.
+
+``` r
+sample_clustered_fold <- function(full_sample, cluster_var, cluster_cov_pct, cluster_train_pct){
+  
+  # ---- check cluster_var is factor ----
+  cf <- full_sample[,cluster_var]
+  stopifnot(is.factor(cf[[cluster_var]]))
+  ## add row_id
+  cf$row_id <- seq_along(cf[,1])
+  
+  # ---- randomly select units in cluster ----
+  # calculation variables
+  n_total_obs <- nrow(cf)
+  n_total_units <- nlevels(cf[[cluster_var]]) 
+  n_units_cluster <- ceiling(cluster_cov_pct * n_total_units)
+  # random sample
+  units_in_cluster <- sample(cf[[cluster_var]], n_units_cluster)
+
+  # ---- sample training rows from extrapolation clusters (up to available units) ---
+  # calculation vars
+  cluster_bool <- cf[[cluster_var]] %in% units_in_cluster
+  obs_extrap <- cf[["row_id"]][cluster_bool] ## ISSUE: how to deal with site_id grouping???
+  n_extrap_obs <- length(obs_extrap)
+  n_train_from_cluster <- ceiling(cluster_train_pct * n_train_obs)
+  # test/train sample from cluster
+  index <- list()
+  if(n_available_obs <= n_train_from_cluster){
+    index$train$cluster <- obs_extrap
+    n_train_from_cluster <- n_available_obs
+  } else {
+    index$train$cluster <- sample(obs_extrap, n_train_from_cluster)
+  }
+  index$test$cluster <- setdiff(obs_in_cluster, index$train$cluster)
+  
+  # ---- sample training rows from in-sample clusters ----
+  pct_train <- n_train_from_cluster / n_available_obs
+  obs_other <- cf[["row_id"]][!cluster_bool]
+  n_train_from_other = pct_train * (n_total_obs - n_train_from_cluster)
+  index$train$other <- sample(obs_other, n_train_from_other)
+  index$test$other <- setdiff(obs_other, index$test$other)
+  
+  return(index)
+}
+```
+
+### Resampling inside ML framework
+
+We tried using the `{mlr3}` `Resampling` class in conjunction with `task$col_role$group` and `task$col_rol$stratum` options. The `"group"` takes only a single column, which should be used for `site_id` to ensure that observations at different depths are not separated. The `"stratum"` role can take multiple columns, which could allow for cross-dimension stratifcation units (e.g. space and time). However, it is not obvious if/how you can weight the proportion of the test/train sets that come from each `strata`. Each subpopulation is sampled independently (i.e. systematic random sampling), but if the same test/train ratio is applied to all subpopulations, each subpopulation will have equal representation in the final merged test set.
+
+According to the `Resampling` class [documentation](https://mlr3.mlr-org.com/reference/Resampling.html):
+
+> First, the observations are divided into subpopulations based one or multiple stratification variables (assumed to be discrete), c.f. `task$strata`.
+
+> Second, the sampling is performed in each of the `k` subpopulations separately. Each subgroup is divided into `iter` training sets and `iter` test sets by the derived `Resampling`. These sets are merged based on their iteration number: all training sets from all subpopulations with iteration 1 are combined, then all training sets with iteration 2, and so on. Same is done for all test sets. The merged sets can be accessed via `$train_set(i)` and `$test_set(i)`, respectively. Note that this procedure can lead to set sizes that are slightly different from those without stratification.
+
+### Using CAST 
+
+An alternative approach would be what Hanna presented in the Extrapolation tutorial of generating the CV folds independently and then passing it to `mlr3` via `rsmp("custom")`
+
+``` r
+# Prepare Cross-validation
+custom <- rsmp("custom")
+## no selection done by mlr3
+train_sets <- NNDM_cv$indx_train # derived from CAST::nndm
+test_sets <- NNDM_cv$indx_test # derived from CAST::nndm
+rsmp_spcv_custom <- custom$instantiate(task, train_sets, test_sets) #create folds
+
+# Model training and cross-validation
+set.seed(seed)
+rr <- mlr3::resample(task, learner, rsmp_spcv_custom) 
+```
+
+We attempted to create spatial folds just based on the state (because we didn't know how to create and segment a sensible grid overlay):
+
+``` r
+ds801_sp <- st_as_sf(ds801, coords = c("longitude","latitude"))
+class(ds801_sp)
+
+library(CAST)
+index <- CreateSpacetimeFolds(ds801_sp,"state", k=10) ## creates 10 folds
+sub1 <- ds801_sp[index$index[[1]],]      ## 1/10 training set
+sub2 <- ds801_sp[index$indexOut[[1]],]   ## 1/10 test set
+
+plot(sub1[,'site_id'])
+plot(sub2[,'site_id'],add=TRUE,col="red")
+```
+
+## ML Issues
+
+We didn't really understand how the tuning and cross-validation in `{mlr3}` worked, and that resampling is (probably?) used both in tuning, and estimating the "experiment" RMSE.
