@@ -1,6 +1,8 @@
 ---
 title: "Hackathon Non-Submission"
-format: html
+format: 
+  html:
+    self-contained: true
 editor: visual
 bibliography: references.bib
 toc: true
@@ -26,7 +28,7 @@ We cloned (as git submodules) or downloaded source code of the follow analyses:
 
 Planned to use for experiment stage, but we didn't get there...
 
-### Scripts from @debruin2022 
+### Scripts from @debruin2022
 
 provided at: <https://zenodo.org/record/6514923#.YxGjei8RrRY>. We roughly annotated the `sample_clustered.R` script to use as a basis for the hackathon sampling task.
 
@@ -167,7 +169,7 @@ According to the `Resampling` class [documentation](https://mlr3.mlr-org.com/ref
 
 We didn't try this, but in theory this mlr3 tutorial discusses what we want to do: [**Resampling - Stratified, Blocked and Predefined**](https://mlr-org.com/gallery/2020-03-30-stratification-blocking/)
 
-### Using CAST 
+### Using CAST
 
 An alternative approach would be what Hanna presented in the Extrapolation tutorial of generating the CV folds independently and then passing it to `mlr3` via `rsmp("custom")`
 

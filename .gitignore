@@ -1,5 +1,8 @@
 ### project specific files
 
+/.quarto/
+/_site/
+
 data/raw
 deBruin_2022
 
