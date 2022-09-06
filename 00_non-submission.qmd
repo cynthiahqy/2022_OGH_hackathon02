@@ -95,8 +95,6 @@ Understanding the required sampling strategy was quite difficult. For a **fixed*
 
 The designation of the extrapolation and observed sets can be thought of as a (partly) deterministic process -- i.e. based on some distance threshold, or correlation parameters; random subset of k-means generated clusters. Given extrapolation and observed set, we then consider what proportion of the test and training sets to sample from each set, which complicates holding constant other parameters of each experimental run (i.e. how to calculate the empty red question mark cells, given some experiment design constraints -- same test/train set sizes etc.)
 
-![](https://lh4.googleusercontent.com/yKCP2LIPHa02jOlddd8onjNj2iMwr9YHZj33_TTPOShWOXHuqeQZ4-Vux_u_v1O9QCP2kyyJ44ZdI5jHVl82K516bl3Y24Fvc_-0G4oNIP1fDC_dHYB9bdc3AgFmeEHthQ3xJ932CjbdsIs9ogYKkLwHKIpmT6cKSTU6yvrL4BEujC54qnPYP_8ouK0){width="461"}
-
 Things that should be held constant
 
 -   number of folds, iterations
